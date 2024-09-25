@@ -34,7 +34,7 @@ spec:
             - name: GF_SECURITY_ADMIN_PASSWORD
               value: admin
             - name: GF_USERS_ALLOW_SIGN_UP
-              value: false
+              value: "false"
 #            - name: GF_DATABASE_TYPE
 #              value: postgres
 #            - name: GF_DATABASE_HOST
@@ -75,5 +75,5 @@ spec:
     - port: 3000
       protocol: TCP
       targetPort: http-grafana
-      nodePort: 3000
+      nodePort: 32000
 
