@@ -4,6 +4,84 @@ kind: Namespace
 metadata:
   name: my-grafana
 ---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: database-pv
+  namespace: my-grafana
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: database-pvc
+  namespace: my-grafana
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+  namespace: my-grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: postgres
+  template:
+    metadata:
+      labels:
+        component: postgres
+    spec:
+      # volume configuration for the pod
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: database-pvc
+      containers:
+        - name: postgres
+          image: postgres:15.7
+          ports:
+            - containerPort: 5432
+          # volume mounting configuration for the container
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+              subPath: postgres
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: postgres
+            - name: POSTGRES_DB
+              value: grafanadb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: my-grafana
+spec:
+  type: ClusterIP
+  selector:
+    component: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -35,18 +113,18 @@ spec:
               value: admin
             - name: GF_USERS_ALLOW_SIGN_UP
               value: "false"
-#            - name: GF_DATABASE_TYPE
-#              value: postgres
-#            - name: GF_DATABASE_HOST
-#              value: postgres:5432
-#            - name: GF_DATABASE_NAME
-#              value: grafanadb
-#            - name: GF_DATABASE_USER
-#              value: postgres
-#            - name: GF_DATABASE_PASSWORD
-#              value: postgres
-#            - name: GF_DATABASE_SSL_MODE
-#              value: disable
+            - name: GF_DATABASE_TYPE
+              value: postgres
+            - name: GF_DATABASE_HOST
+              value: postgres:'5432'
+            - name: GF_DATABASE_NAME
+              value: grafanadb
+            - name: GF_DATABASE_USER
+              value: postgres
+            - name: GF_DATABASE_PASSWORD
+              value: postgres
+            - name: GF_DATABASE_SSL_MODE
+              value: disable
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
